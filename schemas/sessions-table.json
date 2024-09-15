@@ -1,0 +1,19 @@
+{
+  "TableName": "sessions",
+  "KeySchema": [
+    {
+      "AttributeName": "key",
+      "KeyType": "HASH"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "key",
+      "AttributeType": "S"
+    }
+  ],
+  "ProvisionedThroughput": {
+    "ReadCapacityUnits": 5,
+    "WriteCapacityUnits": 5
+  }
+}
