@@ -26,7 +26,7 @@ import type { SessionStoreContract, SessionData } from '../types.js'
  */
 export class DynamoDBStore implements SessionStoreContract {
   #client: DynamoDBClient
-  #tableName: string
+  #tableName: string = 'Session'
   #keyAttribute: string = 'key'
   #valueAttribute: string = 'value'
   #expiresAtAttribute: string = 'expires_at'
@@ -34,7 +34,7 @@ export class DynamoDBStore implements SessionStoreContract {
 
   constructor(
     client: DynamoDBClient,
-    tableName: string,
+    tableName: string = this.#tableName,
     age: string | number,
     keyAttribute: string | undefined = this.#keyAttribute,
     valueAttribute: string | undefined = this.#valueAttribute,
@@ -108,7 +108,7 @@ export class DynamoDBStore implements SessionStoreContract {
     const command = new PutItemCommand({
       TableName: this.#tableName,
       Item: item,
-      ConditionExpression: 'attribute_not_exists(#key) OR #expires_at < :now',
+      ConditionExpression: 'attribute_not_exists(#key) OR #expires_at > :now',
       ExpressionAttributeNames: {
         '#key': this.#keyAttribute,
         '#expires_at': this.#expiresAtAttribute,

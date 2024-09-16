@@ -1,5 +1,5 @@
 {
-  "TableName": "sessions",
+  "TableName": "Session",
   "KeySchema": [
     {
       "AttributeName": "key",

@@ -19,7 +19,7 @@ import { DynamoDBStore } from '../../src/stores/dynamodb.js'
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
 
 const sessionId = '1234'
-const tableName = 'sessions'
+const tableName = 'Session'
 const credentials = {
   accessKeyId: 'accessKeyId',
   secretAccessKey: 'secretAccessKey',
@@ -149,7 +149,7 @@ test.group('DynamoDB store with custom key and value attributes', (group) => {
   const keyAttribute = 'sessionId'
   const valueAttribute = 'sessionValue'
   const expiresAtAttribute = 'sessionExpiresAt'
-  const customTableName = 'customKeySessions'
+  const customTableName = 'CustomKeySession'
   group.tap((t) => {
     t.skip(!!process.env.NO_DYNAMODB, 'DynamoDB not available in this environment')
   })

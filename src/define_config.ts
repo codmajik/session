@@ -22,6 +22,7 @@ import type {
   FileStoreConfig,
   RedisStoreConfig,
   SessionStoreFactory,
+  DynamoDBStoreConfig,
 } from './types.js'
 
 /**
@@ -121,6 +122,7 @@ export const stores: {
   file: (config: FileStoreConfig) => ConfigProvider<SessionStoreFactory>
   redis: (config: RedisStoreConfig) => ConfigProvider<SessionStoreFactory>
   cookie: () => ConfigProvider<SessionStoreFactory>
+  dynamodb: (config: DynamoDBStoreConfig) => ConfigProvider<SessionStoreFactory>
 } = {
   file: (config) => {
     return configProvider.create(async () => {
@@ -145,6 +147,24 @@ export const stores: {
       const { CookieStore } = await import('./stores/cookie.js')
       return (ctx, sessionConfig: SessionConfig) => {
         return new CookieStore(sessionConfig.cookie, ctx)
+      }
+    })
+  },
+  dynamodb: (config) => {
+    return configProvider.create(async () => {
+      const { DynamoDBStore } = await import('./stores/dynamodb.js')
+      const { DynamoDBClient } = await import('@aws-sdk/client-dynamodb')
+      const client = new DynamoDBClient(config?.clientConfig ?? {})
+
+      return (_, sessionConfig: SessionConfig) => {
+        return new DynamoDBStore(
+          client,
+          config.tableName,
+          sessionConfig.age,
+          config.keyAttribute,
+          config.valueAttribute,
+          config.expiresAtAttribute
+        )
       }
     })
   },

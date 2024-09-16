@@ -1,5 +1,5 @@
 {
-  "TableName": "customKeySessions",
+  "TableName": "CustomKeySession",
   "KeySchema": [
     {
       "AttributeName": "sessionId",
