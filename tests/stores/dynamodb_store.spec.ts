@@ -145,10 +145,8 @@ test.group('DynamoDB store', (group) => {
   }).disableTimeout()
 })
 
-test.group('DynamoDB store with custom key and value attributes', (group) => {
+test.group('DynamoDB store with custom key attributes', (group) => {
   const keyAttribute = 'sessionId'
-  const valueAttribute = 'sessionValue'
-  const expiresAtAttribute = 'sessionExpiresAt'
   const customTableName = 'CustomKeySession'
   group.tap((t) => {
     t.skip(!!process.env.NO_DYNAMODB, 'DynamoDB not available in this environment')
@@ -166,27 +164,13 @@ test.group('DynamoDB store with custom key and value attributes', (group) => {
   })
 
   test('return null when value is missing', async ({ assert }) => {
-    const session = new DynamoDBStore(
-      dynamoDBClient,
-      customTableName,
-      '2 hours',
-      keyAttribute,
-      valueAttribute,
-      expiresAtAttribute
-    )
+    const session = new DynamoDBStore(dynamoDBClient, customTableName, '2 hours', keyAttribute)
     const value = await session.read(sessionId)
     assert.isNull(value)
   })
 
   test('get session existing value', async ({ assert }) => {
-    const session = new DynamoDBStore(
-      dynamoDBClient,
-      customTableName,
-      '2 hours',
-      keyAttribute,
-      valueAttribute,
-      expiresAtAttribute
-    )
+    const session = new DynamoDBStore(dynamoDBClient, customTableName, '2 hours', keyAttribute)
     await session.write(sessionId, { message: 'hello-world' })
 
     const value = await session.read(sessionId)
@@ -194,14 +178,7 @@ test.group('DynamoDB store with custom key and value attributes', (group) => {
   })
 
   test('return null when session data is expired', async ({ assert }) => {
-    const session = new DynamoDBStore(
-      dynamoDBClient,
-      customTableName,
-      1,
-      keyAttribute,
-      valueAttribute,
-      expiresAtAttribute
-    )
+    const session = new DynamoDBStore(dynamoDBClient, customTableName, 1, keyAttribute)
     await session.write(sessionId, { message: 'hello-world' })
 
     await setTimeout(2000)
@@ -219,27 +196,13 @@ test.group('DynamoDB store with custom key and value attributes', (group) => {
       })
     )
 
-    const session = new DynamoDBStore(
-      dynamoDBClient,
-      customTableName,
-      1,
-      keyAttribute,
-      valueAttribute,
-      expiresAtAttribute
-    )
+    const session = new DynamoDBStore(dynamoDBClient, customTableName, 1, keyAttribute)
     const value = await session.read(sessionId)
     assert.isNull(value)
   })
 
   test('delete key on destroy', async ({ assert }) => {
-    const session = new DynamoDBStore(
-      dynamoDBClient,
-      customTableName,
-      '2 hours',
-      keyAttribute,
-      valueAttribute,
-      expiresAtAttribute
-    )
+    const session = new DynamoDBStore(dynamoDBClient, customTableName, '2 hours', keyAttribute)
 
     await session.write(sessionId, { message: 'hello-world' })
     await session.destroy(sessionId)
@@ -249,14 +212,7 @@ test.group('DynamoDB store with custom key and value attributes', (group) => {
   })
 
   test('update session expiry on touch', async ({ assert }) => {
-    const session = new DynamoDBStore(
-      dynamoDBClient,
-      customTableName,
-      10,
-      keyAttribute,
-      valueAttribute,
-      expiresAtAttribute
-    )
+    const session = new DynamoDBStore(dynamoDBClient, customTableName, 10, keyAttribute)
     await session.write(sessionId, { message: 'hello-world' })
     const expiry = await getExpiry(sessionId)
     await session.touch(sessionId)

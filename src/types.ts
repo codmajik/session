@@ -110,8 +110,6 @@ export type DynamoDBStoreConfig = {
   clientConfig?: DynamoDBClientConfig
   tableName?: string
   keyAttribute?: string
-  valueAttribute?: string
-  expiresAtAttribute?: string
 }
 
 /**

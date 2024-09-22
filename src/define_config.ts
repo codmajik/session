@@ -157,14 +157,7 @@ export const stores: {
       const client = new DynamoDBClient(config?.clientConfig ?? {})
 
       return (_, sessionConfig: SessionConfig) => {
-        return new DynamoDBStore(
-          client,
-          config.tableName,
-          sessionConfig.age,
-          config.keyAttribute,
-          config.valueAttribute,
-          config.expiresAtAttribute
-        )
+        return new DynamoDBStore(client, config.tableName, sessionConfig.age, config.keyAttribute)
       }
     })
   },

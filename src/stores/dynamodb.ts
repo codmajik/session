@@ -36,15 +36,11 @@ export class DynamoDBStore implements SessionStoreContract {
     client: DynamoDBClient,
     tableName: string = this.#tableName,
     age: string | number,
-    keyAttribute: string | undefined = this.#keyAttribute,
-    valueAttribute: string | undefined = this.#valueAttribute,
-    expiresAtAttribute: string | undefined = this.#expiresAtAttribute
+    keyAttribute: string | undefined = this.#keyAttribute
   ) {
     this.#client = client
     this.#tableName = tableName
     this.#keyAttribute = keyAttribute
-    this.#valueAttribute = valueAttribute
-    this.#expiresAtAttribute = expiresAtAttribute
     this.#ttlSeconds = string.seconds.parse(age)
     debug('initiating dynamodb store')
   }
