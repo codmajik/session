@@ -16,22 +16,17 @@ import { Emitter } from '@adonisjs/core/events'
 import { SimpleErrorReporter } from '@vinejs/vine'
 import { CookieClient } from '@adonisjs/core/http'
 import { fieldContext } from '@vinejs/vine/factories'
+import { IgnitorFactory } from '@adonisjs/core/factories'
 import { AppFactory } from '@adonisjs/core/factories/app'
 import { I18nManagerFactory } from '@adonisjs/i18n/factories'
 import { ApplicationService, EventsList } from '@adonisjs/core/types'
 import { EncryptionFactory } from '@adonisjs/core/factories/encryption'
-import EdgeServiceProvider from '@adonisjs/core/providers/edge_provider'
-import {
-  RouterFactory,
-  RequestFactory,
-  ResponseFactory,
-  HttpContextFactory,
-} from '@adonisjs/core/factories/http'
+import { RequestFactory, ResponseFactory, HttpContextFactory } from '@adonisjs/core/factories/http'
 
+import { defineConfig } from '../index.js'
 import { Session } from '../src/session.js'
 import { httpServer } from '../tests_helpers/index.js'
 import { CookieStore } from '../src/stores/cookie.js'
-import SessionProvider from '../providers/session_provider.js'
 import type { SessionConfig, SessionStoreFactory } from '../src/types.js'
 
 const app = new AppFactory().create(new URL('./', import.meta.url), () => {}) as ApplicationService
@@ -51,12 +46,30 @@ const cookieDriver: SessionStoreFactory = (ctx, config) => {
 
 test.group('Session', (group) => {
   group.setup(async () => {
-    const router = new RouterFactory().create()
-    await app.init()
+    const ignitor = new IgnitorFactory()
+      .merge({
+        rcFileContents: {
+          providers: [
+            () => import('@adonisjs/core/providers/edge_provider'),
+            () => import('../providers/session_provider.js'),
+          ],
+        },
+      })
+      .withCoreConfig()
+      .withCoreProviders()
+      .merge({
+        config: {
+          session: defineConfig({
+            store: 'memory',
+            stores: {},
+          }),
+        },
+      })
+      .create(new URL('./', import.meta.url))
 
-    app.container.singleton('router', () => router)
-
-    await new EdgeServiceProvider(app).boot()
+    const ignitorApp = ignitor.createApp('web')
+    await ignitorApp.init()
+    await ignitorApp.boot()
   })
 
   test('do not define session id cookie when not initiated', async ({ assert }) => {
@@ -626,13 +639,30 @@ test.group('Session | Regenerate', () => {
 
 test.group('Session | Flash', (group) => {
   group.setup(async () => {
-    const router = new RouterFactory().create()
-    await app.init()
+    const ignitor = new IgnitorFactory()
+      .merge({
+        rcFileContents: {
+          providers: [
+            () => import('@adonisjs/core/providers/edge_provider'),
+            () => import('../providers/session_provider.js'),
+          ],
+        },
+      })
+      .withCoreConfig()
+      .withCoreProviders()
+      .merge({
+        config: {
+          session: defineConfig({
+            store: 'memory',
+            stores: {},
+          }),
+        },
+      })
+      .create(new URL('./', import.meta.url))
 
-    app.container.singleton('router', () => router)
-
-    await new EdgeServiceProvider(app).boot()
-    await new SessionProvider(app).boot()
+    const ignitorApp = ignitor.createApp('web')
+    await ignitorApp.init()
+    await ignitorApp.boot()
   })
 
   group.each.setup(() => {
@@ -1151,24 +1181,28 @@ test.group('Session | Flash', (group) => {
     })
 
     const server = httpServer.create(async (req, res) => {
-      const request = new RequestFactory().merge({ req, res, encryption }).create()
-      const response = new ResponseFactory().merge({ req, res, encryption }).create()
-      const ctx = new HttpContextFactory().merge({ request, response }).create()
+      try {
+        const request = new RequestFactory().merge({ req, res, encryption }).create()
+        const response = new ResponseFactory().merge({ req, res, encryption }).create()
+        const ctx = new HttpContextFactory().merge({ request, response }).create()
 
-      const session = new Session(sessionConfig, cookieDriver, emitter, ctx)
-      await session.initiate(false)
-      sessionId = session.sessionId
+        const session = new Session(sessionConfig, cookieDriver, emitter, ctx)
+        await session.initiate(false)
+        sessionId = session.sessionId
 
-      if (request.url() === '/prg') {
-        response.send(await ctx.view.render('flash_messages'))
-        await session.commit()
+        if (request.url() === '/prg') {
+          response.send(await ctx.view.render('flash_messages'))
+          await session.commit()
+          response.finish()
+        } else {
+          session.flash({ status: 'Task created successfully' })
+          await session.commit()
+        }
+
         response.finish()
-      } else {
-        session.flash({ status: 'Task created successfully' })
-        await session.commit()
+      } catch (error) {
+        console.log(error)
       }
-
-      response.finish()
     })
 
     const { headers } = await supertest(server).get('/')
