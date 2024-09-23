@@ -1,0 +1,19 @@
+{
+  "TableName": "CustomKeySession",
+  "KeySchema": [
+    {
+      "AttributeName": "sessionId",
+      "KeyType": "HASH"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "sessionId",
+      "AttributeType": "S"
+    }
+  ],
+  "ProvisionedThroughput": {
+    "ReadCapacityUnits": 5,
+    "WriteCapacityUnits": 5
+  }
+}

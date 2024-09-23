@@ -24,8 +24,29 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
+      dynamodb-local:
+        image: amazon/dynamodb-local
+        ports:
+          - 8000:8000
     steps:
       - uses: actions/checkout@v2
+      - name: Create DynamoDB Table
+        env:
+          AWS_ACCESS_KEY_ID: accessKeyId
+          AWS_SECRET_ACCESS_KEY: secretAccessKey
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          aws dynamodb create-table --endpoint-url http://localhost:8000 \
+            --table-name Session \
+            --key-schema AttributeName=key,KeyType=HASH \
+            --attribute-definitions AttributeName=key,AttributeType=S \
+            --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
+          && aws dynamodb create-table --endpoint-url http://localhost:8000 \
+            --table-name CustomKeySession \
+            --key-schema AttributeName=sessionId,KeyType=HASH \
+            --attribute-definitions AttributeName=sessionId,AttributeType=S \
+            --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v1
         with:
@@ -59,3 +80,4 @@ jobs:
         run: npm test
         env:
           NO_REDIS: true
+          NO_DYNAMODB: true
