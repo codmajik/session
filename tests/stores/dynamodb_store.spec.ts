@@ -9,14 +9,14 @@
 
 import { test } from '@japa/runner'
 import { setTimeout } from 'node:timers/promises'
+import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
 import {
   DynamoDBClient,
   PutItemCommand,
-  DeleteItemCommand,
   GetItemCommand,
+  DeleteItemCommand,
 } from '@aws-sdk/client-dynamodb'
 import { DynamoDBStore } from '../../src/stores/dynamodb.js'
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
 
 const sessionId = '1234'
 const tableName = 'Session'

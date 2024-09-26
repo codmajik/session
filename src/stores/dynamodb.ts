@@ -7,6 +7,9 @@
  * file that was distributed with this source code.
  */
 
+import string from '@poppinss/utils/string'
+import { MessageBuilder } from '@adonisjs/core/helpers'
+import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
 import {
   DynamoDBClient,
   GetItemCommand,
@@ -14,9 +17,6 @@ import {
   DeleteItemCommand,
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb'
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
-import string from '@poppinss/utils/string'
-import { MessageBuilder } from '@adonisjs/core/helpers'
 
 import debug from '../debug.js'
 import type { SessionStoreContract, SessionData } from '../types.js'
@@ -68,12 +68,12 @@ export class DynamoDBStore implements SessionStoreContract {
 
     const item = unmarshall(response.Item)
     const contents = item[this.#valueAttribute] as string
-    const expiration = item[this.#expiresAtAttribute] as number
+    const expiresAt = item[this.#expiresAtAttribute] as number
 
     /**
      * Check if the item has been expired and return null (if expired)
      */
-    if (Date.now() > expiration) {
+    if (Date.now() > expiresAt) {
       return null
     }
 
