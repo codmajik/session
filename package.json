@@ -113,13 +113,13 @@
   },
   "author": "virk,adonisjs",
   "license": "MIT",
-  "homepage": "https://github.com/adonisjs/adonis-session#readme",
+  "homepage": "https://github.com/adonisjs/session#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/adonisjs/adonis-session.git"
+    "url": "git+https://github.com/adonisjs/session.git"
   },
   "bugs": {
-    "url": "https://github.com/adonisjs/adonis-session/issues"
+    "url": "https://github.com/adonisjs/session/issues"
   },
   "keywords": [
     "session",
