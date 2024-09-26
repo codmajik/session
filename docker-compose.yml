@@ -17,7 +17,7 @@ services:
   dynamodb-local:
     image: amazon/dynamodb-local
     ports:
-      - 8000:8000
+      - 8002:8000
     command: '-jar DynamoDBLocal.jar -inMemory -sharedDb'
     working_dir: /home/dynamodblocal
     healthcheck:
@@ -36,7 +36,7 @@ services:
         condition: service_healthy
     image: amazon/aws-cli
     volumes:
-      - './schemas:/tmp/dynamo'
+      - './tests_helpers/dynamodb_schemas:/tmp/dynamo'
     environment:
       AWS_ACCESS_KEY_ID: 'accessKeyId'
       AWS_SECRET_ACCESS_KEY: 'secretAccessKey'

@@ -70,7 +70,7 @@ test.group('Api client', (group) => {
       await client.get(url).withSession({ username: 'virk' })
       assert.lengthOf(MemoryStore.sessions, 0)
     })
-  })
+  }).timeout(4000)
 
   test('set flash messages from the client', async ({ assert }) => {
     const server = httpServer.create(async (req, res) => {

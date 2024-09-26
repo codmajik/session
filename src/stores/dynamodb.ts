@@ -26,21 +26,30 @@ import type { SessionStoreContract, SessionData } from '../types.js'
  */
 export class DynamoDBStore implements SessionStoreContract {
   #client: DynamoDBClient
-  #tableName: string = 'Session'
-  #keyAttribute: string = 'key'
+  #tableName: string
+  #keyAttribute: string
+  #ttlSeconds: number
   #valueAttribute: string = 'value'
   #expiresAtAttribute: string = 'expires_at'
-  #ttlSeconds: number
 
   constructor(
     client: DynamoDBClient,
-    tableName: string = this.#tableName,
     age: string | number,
-    keyAttribute: string | undefined = this.#keyAttribute
+    options?: {
+      /**
+       * Defaults to "Session"
+       */
+      tableName?: string
+
+      /**
+       * Defaults to "key"
+       */
+      keyAttribute?: string
+    }
   ) {
     this.#client = client
-    this.#tableName = tableName
-    this.#keyAttribute = keyAttribute
+    this.#tableName = options?.tableName ?? 'Session'
+    this.#keyAttribute = options?.keyAttribute ?? 'key'
     this.#ttlSeconds = string.seconds.parse(age)
     debug('initiating dynamodb store')
   }
@@ -95,22 +104,12 @@ export class DynamoDBStore implements SessionStoreContract {
     debug('dynamodb store: writing session data %s, %O', sessionId, values)
 
     const message = new MessageBuilder().build(values, undefined, sessionId)
-    const item = marshall({
-      [this.#keyAttribute]: sessionId,
-      [this.#valueAttribute]: message,
-      [this.#expiresAtAttribute]: Date.now() + this.#ttlSeconds * 1000,
-    })
-
     const command = new PutItemCommand({
       TableName: this.#tableName,
-      Item: item,
-      ConditionExpression: 'attribute_not_exists(#key) OR #expires_at > :now',
-      ExpressionAttributeNames: {
-        '#key': this.#keyAttribute,
-        '#expires_at': this.#expiresAtAttribute,
-      },
-      ExpressionAttributeValues: marshall({
-        ':now': Date.now(),
+      Item: marshall({
+        [this.#keyAttribute]: sessionId,
+        [this.#valueAttribute]: message,
+        [this.#expiresAtAttribute]: Date.now() + this.#ttlSeconds * 1000,
       }),
     })
 

@@ -37,6 +37,10 @@ test.group('Redis store', (group) => {
     }
   })
 
+  group.teardown(async () => {
+    await redis.disconnectAll()
+  })
+
   test('return null when value is missing', async ({ assert }) => {
     const session = new RedisStore(redis.connection('main'), '2 hours')
     const value = await session.read(sessionId)
@@ -93,8 +97,8 @@ test.group('Redis store', (group) => {
     await setTimeout(2000)
 
     /**
-     * Making sure the original mTime of the file was smaller
-     * than the current time after wait
+     * After waiting for a couple of seconds, the ttl should be
+     * under 9 already
      */
     const expiry = await redis.ttl(sessionId)
     assert.isBelow(expiry, 9)

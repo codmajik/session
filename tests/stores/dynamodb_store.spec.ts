@@ -9,63 +9,18 @@
 
 import { test } from '@japa/runner'
 import { setTimeout } from 'node:timers/promises'
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
-import {
-  DynamoDBClient,
-  PutItemCommand,
-  GetItemCommand,
-  DeleteItemCommand,
-} from '@aws-sdk/client-dynamodb'
+import { marshall } from '@aws-sdk/util-dynamodb'
+import { PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb'
+
 import { DynamoDBStore } from '../../src/stores/dynamodb.js'
+import { dynamodbClient, getExpiry, getSession } from '../../tests_helpers/index.js'
 
 const sessionId = '1234'
-const tableName = 'Session'
-const credentials = {
-  accessKeyId: 'accessKeyId',
-  secretAccessKey: 'secretAccessKey',
-}
-const region = 'us-east-1'
-const endpoint = 'http://localhost:8000'
-
-const dynamoDBClient = new DynamoDBClient({
-  region,
-  endpoint,
-  credentials,
-})
-
-async function getSession(id: string) {
-  const result = await dynamoDBClient.send(
-    new GetItemCommand({
-      TableName: tableName,
-      Key: marshall({ key: id }),
-    })
-  )
-
-  if (!result.Item) {
-    return null
-  }
-
-  const item = unmarshall(result.Item)
-
-  return JSON.parse(item.value) ?? null
-}
-
-async function getExpiry(id: string) {
-  const result = await dynamoDBClient.send(
-    new GetItemCommand({
-      TableName: tableName,
-      Key: marshall({ key: id }),
-    })
-  )
-
-  if (!result.Item) {
-    return 0
-  }
-
-  const item = unmarshall(result.Item)
-
-  return item.expires_at as number
-}
+const defaultTableName = 'Session'
+const defaultKeyName = 'key'
+const customKeyAttribute = 'sessionId'
+const customTableName = 'CustomKeySession'
+const client = dynamodbClient.create()
 
 test.group('DynamoDB store', (group) => {
   group.tap((t) => {
@@ -74,23 +29,24 @@ test.group('DynamoDB store', (group) => {
 
   group.each.setup(() => {
     return async () => {
-      await dynamoDBClient.send(
+      await client.send(
         new DeleteItemCommand({
-          TableName: tableName,
-          Key: { key: { S: sessionId } },
+          TableName: defaultTableName,
+          Key: marshall({ [defaultKeyName]: sessionId }),
         })
       )
     }
   })
 
   test('return null when value is missing', async ({ assert }) => {
-    const session = new DynamoDBStore(dynamoDBClient, tableName, '2 hours')
+    const session = new DynamoDBStore(client, '2 hours')
+
     const value = await session.read(sessionId)
     assert.isNull(value)
   })
 
   test('get session existing value', async ({ assert }) => {
-    const session = new DynamoDBStore(dynamoDBClient, tableName, '2 hours')
+    const session = new DynamoDBStore(client, '2 hours')
     await session.write(sessionId, { message: 'hello-world' })
 
     const value = await session.read(sessionId)
@@ -98,79 +54,109 @@ test.group('DynamoDB store', (group) => {
   })
 
   test('return null when session data is expired', async ({ assert }) => {
-    const session = new DynamoDBStore(dynamoDBClient, tableName, 1)
+    const session = new DynamoDBStore(client, 1)
     await session.write(sessionId, { message: 'hello-world' })
 
     await setTimeout(2000)
 
     const value = await session.read(sessionId)
-
     assert.isNull(value)
-  }).disableTimeout()
+  }).timeout(3000)
 
   test('ignore malformed contents', async ({ assert }) => {
-    await dynamoDBClient.send(
+    const session = new DynamoDBStore(client, '2 hours')
+
+    await client.send(
       new PutItemCommand({
-        TableName: tableName,
-        Item: { key: { S: sessionId }, value: { S: 'foo' } },
+        TableName: defaultTableName,
+        Item: { [defaultKeyName]: marshall(sessionId), value: marshall('foo') },
       })
     )
 
-    const session = new DynamoDBStore(dynamoDBClient, tableName, 1)
+    const value = await session.read(sessionId)
+    assert.isNull(value)
+  })
+
+  test('ignore items with missing value attribute', async ({ assert }) => {
+    const session = new DynamoDBStore(client, '2 hours')
+
+    await client.send(
+      new PutItemCommand({
+        TableName: defaultTableName,
+        Item: { [defaultKeyName]: marshall(sessionId) },
+      })
+    )
+
     const value = await session.read(sessionId)
     assert.isNull(value)
   })
 
   test('delete key on destroy', async ({ assert }) => {
-    const session = new DynamoDBStore(dynamoDBClient, tableName, '2 hours')
+    const session = new DynamoDBStore(client, '2 hours')
 
     await session.write(sessionId, { message: 'hello-world' })
     await session.destroy(sessionId)
 
-    const storedValue = await getSession(sessionId)
+    const storedValue = await getSession(client, defaultTableName, defaultKeyName, sessionId)
     assert.isNull(storedValue)
   })
 
   test('update session expiry on touch', async ({ assert }) => {
-    const session = new DynamoDBStore(dynamoDBClient, tableName, 10)
+    const session = new DynamoDBStore(client, 10)
+
     await session.write(sessionId, { message: 'hello-world' })
-    const expiry = await getExpiry(sessionId)
+    const expiry = await getExpiry(client, defaultTableName, defaultKeyName, sessionId)
+
+    /**
+     * Waiting a bit
+     */
+    await setTimeout(2000)
+
+    /**
+     * Update the expiry
+     */
     await session.touch(sessionId)
 
     /**
      * Ensuring the new expiry time is greater than the old expiry time
      */
-    const expiryPostTouch = await getExpiry(sessionId)
-    assert.isAtLeast(expiryPostTouch, expiry)
-  }).disableTimeout()
+    const expiryPostTouch = await getExpiry(client, defaultTableName, defaultKeyName, sessionId)
+    assert.isAbove(expiryPostTouch, expiry)
+  }).timeout(3000)
 })
 
-test.group('DynamoDB store with custom key attributes', (group) => {
-  const keyAttribute = 'sessionId'
-  const customTableName = 'CustomKeySession'
+test.group('DynamoDB store | Custom table name', (group) => {
   group.tap((t) => {
     t.skip(!!process.env.NO_DYNAMODB, 'DynamoDB not available in this environment')
   })
 
   group.each.setup(() => {
     return async () => {
-      await dynamoDBClient.send(
+      await client.send(
         new DeleteItemCommand({
           TableName: customTableName,
-          Key: { sessionId: { S: sessionId } },
+          Key: marshall({ [customKeyAttribute]: sessionId }),
         })
       )
     }
   })
 
   test('return null when value is missing', async ({ assert }) => {
-    const session = new DynamoDBStore(dynamoDBClient, customTableName, '2 hours', keyAttribute)
+    const session = new DynamoDBStore(client, '2 hours', {
+      tableName: customTableName,
+      keyAttribute: customKeyAttribute,
+    })
+
     const value = await session.read(sessionId)
     assert.isNull(value)
   })
 
   test('get session existing value', async ({ assert }) => {
-    const session = new DynamoDBStore(dynamoDBClient, customTableName, '2 hours', keyAttribute)
+    const session = new DynamoDBStore(client, '2 hours', {
+      tableName: customTableName,
+      keyAttribute: customKeyAttribute,
+    })
+
     await session.write(sessionId, { message: 'hello-world' })
 
     const value = await session.read(sessionId)
@@ -178,49 +164,89 @@ test.group('DynamoDB store with custom key attributes', (group) => {
   })
 
   test('return null when session data is expired', async ({ assert }) => {
-    const session = new DynamoDBStore(dynamoDBClient, customTableName, 1, keyAttribute)
+    const session = new DynamoDBStore(client, 1, {
+      tableName: customTableName,
+      keyAttribute: customKeyAttribute,
+    })
+
     await session.write(sessionId, { message: 'hello-world' })
 
     await setTimeout(2000)
 
     const value = await session.read(sessionId)
-
     assert.isNull(value)
-  }).disableTimeout()
+  }).timeout(3000)
 
   test('ignore malformed contents', async ({ assert }) => {
-    await dynamoDBClient.send(
+    const session = new DynamoDBStore(client, '2 hours', {
+      tableName: customTableName,
+      keyAttribute: customKeyAttribute,
+    })
+
+    await client.send(
       new PutItemCommand({
         TableName: customTableName,
-        Item: { sessionId: { S: sessionId }, sessionValue: { S: 'foo' } },
+        Item: { [customKeyAttribute]: marshall(sessionId), value: marshall('foo') },
       })
     )
 
-    const session = new DynamoDBStore(dynamoDBClient, customTableName, 1, keyAttribute)
+    const value = await session.read(sessionId)
+    assert.isNull(value)
+  })
+
+  test('ignore items with missing value attribute', async ({ assert }) => {
+    const session = new DynamoDBStore(client, '2 hours', {
+      tableName: customTableName,
+      keyAttribute: customKeyAttribute,
+    })
+
+    await client.send(
+      new PutItemCommand({
+        TableName: customTableName,
+        Item: { [customKeyAttribute]: marshall(sessionId) },
+      })
+    )
+
     const value = await session.read(sessionId)
     assert.isNull(value)
   })
 
   test('delete key on destroy', async ({ assert }) => {
-    const session = new DynamoDBStore(dynamoDBClient, customTableName, '2 hours', keyAttribute)
+    const session = new DynamoDBStore(client, '2 hours', {
+      tableName: customTableName,
+      keyAttribute: customKeyAttribute,
+    })
 
     await session.write(sessionId, { message: 'hello-world' })
     await session.destroy(sessionId)
 
-    const storedValue = await getSession(sessionId)
+    const storedValue = await getSession(client, customTableName, customKeyAttribute, sessionId)
     assert.isNull(storedValue)
   })
 
   test('update session expiry on touch', async ({ assert }) => {
-    const session = new DynamoDBStore(dynamoDBClient, customTableName, 10, keyAttribute)
+    const session = new DynamoDBStore(client, '2 hours', {
+      tableName: customTableName,
+      keyAttribute: customKeyAttribute,
+    })
+
     await session.write(sessionId, { message: 'hello-world' })
-    const expiry = await getExpiry(sessionId)
+    const expiry = await getExpiry(client, customTableName, customKeyAttribute, sessionId)
+
+    /**
+     * Waiting a bit
+     */
+    await setTimeout(2000)
+
+    /**
+     * Update the expiry
+     */
     await session.touch(sessionId)
 
     /**
      * Ensuring the new expiry time is greater than the old expiry time
      */
-    const expiryPostTouch = await getExpiry(sessionId)
-    assert.isAtLeast(expiryPostTouch, expiry)
-  }).disableTimeout()
+    const expiryPostTouch = await getExpiry(client, customTableName, customKeyAttribute, sessionId)
+    assert.isAbove(expiryPostTouch, expiry)
+  }).timeout(3000)
 })
