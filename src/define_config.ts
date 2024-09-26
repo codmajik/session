@@ -154,10 +154,15 @@ export const stores: {
     return configProvider.create(async () => {
       const { DynamoDBStore } = await import('./stores/dynamodb.js')
       const { DynamoDBClient } = await import('@aws-sdk/client-dynamodb')
-      const client = new DynamoDBClient(config?.clientConfig ?? {})
+
+      const client =
+        'clientConfig' in config ? new DynamoDBClient(config.clientConfig) : config.client
 
       return (_, sessionConfig: SessionConfig) => {
-        return new DynamoDBStore(client, config.tableName, sessionConfig.age, config.keyAttribute)
+        return new DynamoDBStore(client, sessionConfig.age, {
+          tableName: config.tableName,
+          keyAttribute: config.keyAttribute,
+        })
       }
     })
   },

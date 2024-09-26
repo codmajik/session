@@ -12,10 +12,10 @@ import type { Test } from '@japa/runner/core'
 import { browserClient } from '@japa/browser-client'
 import { pluginAdonisJS } from '@japa/plugin-adonisjs'
 import { ApiClient, apiClient } from '@japa/api-client'
-import { DeleteItemCommand, DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb'
 import { NamedReporterContract } from '@japa/runner/types'
 import { runner, syncReporter } from '@japa/runner/factories'
 import type { ApplicationService } from '@adonisjs/core/types'
+import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb'
 import { IncomingMessage, ServerResponse, createServer } from 'node:http'
 
 import { sessionApiClient } from '../src/plugins/japa/api_client.js'
@@ -67,7 +67,7 @@ export const dynamodbClient = {
   create() {
     const client = new DynamoDBClient({
       region: 'us-east-1',
-      endpoint: 'http://localhost:8002',
+      endpoint: 'http://localhost:8000',
       credentials: {
         accessKeyId: 'accessKeyId',
         secretAccessKey: 'secretAccessKey',

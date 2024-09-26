@@ -10,7 +10,7 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { RedisConnections } from '@adonisjs/redis/types'
 import type { CookieOptions } from '@adonisjs/core/types/http'
-import type { DynamoDBClientConfig } from '@aws-sdk/client-dynamodb'
+import type { DynamoDBClient, DynamoDBClientConfig } from '@aws-sdk/client-dynamodb'
 
 /**
  * The values allowed by the `session.put` method
@@ -106,8 +106,14 @@ export type RedisStoreConfig = {
 /**
  * Configuration used by the dynamodb store.
  */
-export type DynamoDBStoreConfig = {
-  clientConfig?: DynamoDBClientConfig
+export type DynamoDBStoreConfig = (
+  | {
+      client: DynamoDBClient
+    }
+  | {
+      clientConfig: DynamoDBClientConfig
+    }
+) & {
   tableName?: string
   keyAttribute?: string
 }
