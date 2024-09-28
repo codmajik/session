@@ -85,6 +85,14 @@ export class Session extends Macroable {
   }
 
   /**
+   * HTTPContext current HTTP request
+  */
+  get ctx() {
+    return this.#ctx
+  }
+
+  
+  /**
    * A boolean to know if a fresh session is created during
    * the request
    */
