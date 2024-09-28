@@ -85,7 +85,7 @@ export class Session extends Macroable {
   }
 
   /**
-   * HTTPContext current HTTP request
+   * current HTTP request context
   */
   get ctx() {
     return this.#ctx
